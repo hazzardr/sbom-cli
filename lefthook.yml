@@ -1,0 +1,15 @@
+output:
+  - success
+  - failure
+
+pre-commit:
+  parallel: false
+  jobs:
+    - name: format
+      run: mise run fmt
+
+    - name: lint
+      run: mise run lint
+
+    - name: test
+      run: mise run test
