@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,37 +9,34 @@ import (
 )
 
 var ingestCmd = &cobra.Command{
-	Use:   "ingest FILE...",
-	Short: "Ingest CycloneDX 1.6 or SPDX 3.0 JSON SBOMs (use - for stdin)",
-	Args:  cobra.MinimumNArgs(1),
+	Use:                   "ingest <sbom-file>",
+	Short:                 "Ingest a CycloneDX 1.6 or SPDX 3.0 JSON SBOM (use - for stdin)",
+	DisableFlagsInUseLine: true,
+	Args:                  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		path := args[0]
+		raw, err := readInput(cmd, path)
+		if err != nil {
+			return err
+		}
 		s, err := openStore(cmd)
 		if err != nil {
 			return err
 		}
 		defer s.Close()
 
-		out := cmd.OutOrStdout()
-		var errs []error
-		for _, path := range args {
-			raw, err := readInput(cmd, path)
-			if err != nil {
-				errs = append(errs, err)
-				continue
-			}
-			res, err := s.Ingest(cmd.Context(), path, raw)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("%s: %w", path, err))
-				continue
-			}
-			if res.Duplicate {
-				fmt.Fprintf(out, "%s: already ingested as SBOM %d\n", path, res.ID)
-				continue
-			}
-			fmt.Fprintf(out, "%s: ingested as SBOM %d (%s, %d components)\n",
-				path, res.ID, res.Format, res.Components)
+		res, err := s.Ingest(cmd.Context(), path, raw)
+		if err != nil {
+			return fmt.Errorf("%s: %w", path, err)
 		}
-		return errors.Join(errs...)
+		out := cmd.OutOrStdout()
+		if res.Duplicate {
+			fmt.Fprintf(out, "%s: already ingested as SBOM %d\n", path, res.ID)
+			return nil
+		}
+		fmt.Fprintf(out, "%s: ingested as SBOM %d (%s, %d components)\n",
+			path, res.ID, res.Format, res.Components)
+		return nil
 	},
 }
 

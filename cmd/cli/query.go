@@ -2,7 +2,9 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -16,17 +18,21 @@ var (
 )
 
 var queryCmd = &cobra.Command{
-	Use:   "query",
-	Short: "Find components by name, version, and/or license across all SBOMs",
-	Long: `Find components by name, version, and/or license across all SBOMs.
+	Use:   "query --component <name> [--version <version>]",
+	Short: "Find components by name and version, or by license, across all SBOMs",
+	Long: `Find components by name and version, or by license, across all SBOMs.
 
-All given filters must match. Component names and licenses match
-case-insensitively; versions match exactly. A license matches any SPDX
-expression that references it, so --license MIT finds "MIT OR Apache-2.0".`,
+Component names and licenses match case-insensitively; versions match
+exactly. A license matches any SPDX expression that references it, so
+--license MIT finds "MIT OR Apache-2.0".`,
 	Example: `  sbom-cli query --component log4j-core
   sbom-cli query --component log4j-core --version 2.14.1
   sbom-cli query --license GPL-3.0-only --json`,
-	Args: cobra.NoArgs,
+	DisableFlagsInUseLine: true,
+	Args:                  cobra.NoArgs,
+	PreRunE: func(_ *cobra.Command, _ []string) error {
+		return validateQuery(queryFilter)
+	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		s, err := openStore(cmd)
 		if err != nil {
@@ -52,6 +58,20 @@ expression that references it, so --license MIT finds "MIT OR Apache-2.0".`,
 	},
 }
 
+// validateQuery enforces the two supported forms: --component with an
+// optional --version, or --license on its own.
+func validateQuery(f store.Filter) error {
+	switch {
+	case f.Component != "" && f.License != "":
+		return errors.New("use either --component or --license, not both")
+	case f.Version != "" && f.Component == "":
+		return errors.New("--version requires --component")
+	case f.Component == "" && f.License == "":
+		return errors.New("one of --component or --license is required")
+	}
+	return nil
+}
+
 // writeJSON writes v as indented JSON, rendering nil slices as [].
 func writeJSON[T any](cmd *cobra.Command, v []T) error {
 	if v == nil {
@@ -68,6 +88,8 @@ func init() {
 	f.StringVar(&queryFilter.Version, "version", "", "component version")
 	f.StringVar(&queryFilter.License, "license", "", "license ID or name")
 	f.BoolVar(&queryJSON, "json", false, "output JSON")
-	queryCmd.MarkFlagsOneRequired("component", "version", "license")
+	// Cobra renders a single use line; append the --license form to it.
+	queryCmd.SetUsageTemplate(strings.Replace(queryCmd.UsageTemplate(),
+		"{{.UseLine}}", "{{.UseLine}}\n  {{.CommandPath}} --license <license>", 1))
 	rootCmd.AddCommand(queryCmd)
 }

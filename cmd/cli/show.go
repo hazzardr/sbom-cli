@@ -10,9 +10,10 @@ import (
 )
 
 var showCmd = &cobra.Command{
-	Use:   "show ID",
-	Short: "Print a stored SBOM document as JSON",
-	Args:  cobra.ExactArgs(1),
+	Use:                   "show <id>",
+	Short:                 "Print a stored SBOM document as JSON",
+	DisableFlagsInUseLine: true,
+	Args:                  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id, err := strconv.ParseInt(args[0], 10, 64)
 		if err != nil {

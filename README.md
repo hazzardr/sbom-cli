@@ -15,13 +15,13 @@ mise run build
 ## Usage
 
 ```bash
-sbom-cli ingest app.cdx.json service.spdx3.json   # or - for stdin
-sbom-cli list
-sbom-cli query --component log4j-core
-sbom-cli query --component log4j-core --version 2.14.1
-sbom-cli query --license MIT --json               # matches "MIT OR Apache-2.0" too
-sbom-cli show 1                                   # print a stored SBOM
+sbom-cli ingest <sbom-file>                                # - reads stdin
+sbom-cli query --component <name> [--version <version>]
+sbom-cli query --license <license>                         # MIT matches "MIT OR Apache-2.0"
 ```
+
+`query` accepts `--json`. `sbom-cli list` and `sbom-cli show <id>` list
+stored SBOMs and print one back as JSON.
 
 The database is created and migrated automatically at `--db`, `$DB_URL`, or
 `data/sbom-cli.db`.
