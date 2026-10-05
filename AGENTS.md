@@ -31,15 +31,17 @@ information relevant to the problem or query, then proceed.
 | Database | SQLite via `modernc.org/sqlite` (pure Go, no cgo) |
 | Queries | `sqlc` — `migrations/` (schema) + `db/query.sql` → `generated/domain` |
 | Migrations | `goose` — SQL files in `migrations/`, embedded and applied on every DB open |
+| HTTP | stdlib `net/http` — `internal/api`, served by `sbom-cli serve` (used by the performance tests) |
 | Lint | `golangci-lint` (`.golangci.yml`) |
 
 ## Layout
 
 - `main.go` — entrypoint; sets up slog, calls `cli.Execute()`
-- `cmd/cli/` — Cobra commands (`ingest`, `list`, `query`, `show`); add new commands here
+- `cmd/cli/` — Cobra commands (`ingest`, `list`, `query`, `show`, `serve`); add new commands here
 - `internal/sbom/` — format detection and parsing of CycloneDX 1.6/1.7 and SPDX 3.0
   into a format-neutral `Document`; `LicenseIDs` splits SPDX expressions
 - `internal/store/` — SQLite persistence: ingest, list, show, and `Search`
+- `internal/api/` — HTTP handlers mirroring the CLI forms (`POST /sboms`, `GET /components`)
 - `db/query.sql` — sqlc queries
 - `migrations/` — goose migration files (sqlite3 dialect); also the sqlc schema
   source. `embed.go` embeds them into the binary

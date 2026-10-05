@@ -43,7 +43,7 @@ type cdxLicense struct {
 func parseCycloneDX(data []byte) (*Document, error) {
 	var bom cdxBOM
 	if err := json.Unmarshal(data, &bom); err != nil {
-		return nil, fmt.Errorf("decode CycloneDX: %w", err)
+		return nil, fmt.Errorf("%w: decode CycloneDX: %w", ErrMalformed, err)
 	}
 	if !slices.Contains(cycloneDXSpecVersions, bom.SpecVersion) {
 		return nil, fmt.Errorf("%w: CycloneDX specVersion %q (want one of %v)",

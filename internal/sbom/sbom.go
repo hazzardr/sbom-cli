@@ -16,9 +16,14 @@ const (
 	FormatSPDX      Format = "spdx"
 )
 
-// ErrUnsupportedFormat is returned when a document is not CycloneDX 1.6/1.7
-// or SPDX 3.0 JSON.
-var ErrUnsupportedFormat = errors.New("unsupported SBOM format")
+var (
+	// ErrUnsupportedFormat is returned when a document is not CycloneDX
+	// 1.6/1.7 or SPDX 3.0 JSON.
+	ErrUnsupportedFormat = errors.New("unsupported SBOM format")
+	// ErrMalformed is returned when a document is not valid JSON or does not
+	// match the structure of its declared format.
+	ErrMalformed = errors.New("malformed SBOM")
+)
 
 // Document is the format-neutral view of an SBOM used for indexing.
 type Document struct {
@@ -48,7 +53,7 @@ func Parse(data []byte) (*Document, error) {
 		Context   json.RawMessage `json:"@context"`
 	}
 	if err := json.Unmarshal(data, &probe); err != nil {
-		return nil, fmt.Errorf("decode JSON: %w", err)
+		return nil, fmt.Errorf("%w: decode JSON: %w", ErrMalformed, err)
 	}
 	switch {
 	case probe.BOMFormat == "CycloneDX":

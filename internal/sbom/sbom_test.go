@@ -154,6 +154,23 @@ func TestParseUnsupported(t *testing.T) {
 	}
 }
 
+func TestParseMalformed(t *testing.T) {
+	t.Parallel()
+	inputs := map[string]string{
+		"invalid json":           `{"bomFormat": "CycloneDX",`,
+		"cyclonedx wrong shape":  `{"bomFormat": "CycloneDX", "specVersion": "1.6", "components": {}}`,
+		"spdx graph wrong shape": `{"@context": "x", "@graph": {}}`,
+	}
+	for name, input := range inputs {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := Parse([]byte(input)); !errors.Is(err, ErrMalformed) {
+				t.Errorf("want ErrMalformed, got %v", err)
+			}
+		})
+	}
+}
+
 func TestLicenseIDs(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

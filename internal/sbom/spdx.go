@@ -36,7 +36,7 @@ type spdxElement struct {
 func parseSPDX(data []byte) (*Document, error) {
 	var raw spdxDocument
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("decode SPDX: %w", err)
+		return nil, fmt.Errorf("%w: decode SPDX: %w", ErrMalformed, err)
 	}
 
 	doc := &Document{Format: FormatSPDX}
