@@ -1,6 +1,6 @@
 # sbom-cli
 
-Ingest, store, and query software bills of materials. Supports CycloneDX 1.6
+Ingest, store, and query software bills of materials. Supports CycloneDX 1.6/1.7
 and SPDX 3.0 JSON. See [AGENTS.md](AGENTS.md) for the tech stack, data model,
 and agent operating instructions.
 

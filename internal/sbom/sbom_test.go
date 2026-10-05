@@ -16,74 +16,133 @@ func readFixture(t *testing.T, name string) []byte {
 	return data
 }
 
-func TestParseCycloneDX(t *testing.T) {
+func TestParse(t *testing.T) {
 	t.Parallel()
-	doc, err := Parse(readFixture(t, "cyclonedx-1.6.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if doc.Format != FormatCycloneDX || doc.SpecVersion != "1.6" || doc.Name != "acme-web" ||
-		doc.DocumentID != "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79" {
-		t.Errorf("unexpected document header: %+v", doc)
-	}
-	want := []Component{
-		{Name: "acme-web", Version: "2.4.0", Type: "application", Licenses: []string{"Apache-2.0"}},
+	tests := []struct {
+		fixture string
+		want    Document
+	}{
 		{
-			Name: "log4j-core", Version: "2.14.1", Type: "library", Licenses: []string{"Apache-2.0"},
-			PURL: "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1",
+			fixture: "cyclonedx-1.6-spec-valid-bom.json",
+			want: Document{
+				Format: FormatCycloneDX, SpecVersion: "1.6", Name: "Acme Application",
+				DocumentID: "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79",
+				// The pedigree ancestor (org.apache.tomcat/tomcat-catalina) is
+				// not part of the BOM's inventory and must not be indexed.
+				Components: []Component{
+					{Name: "Acme Application", Version: "9.1.1", Type: "application"},
+					{
+						Name: "tomcat-catalina", Version: "9.0.14", Type: "application",
+						PURL:     "pkg:maven/com.acme/tomcat-catalina@9.0.14?packaging=jar",
+						Licenses: []string{"Apache-2.0"},
+					},
+					{
+						Name: "mylibrary", Version: "1.0.0", Type: "library",
+						PURL:     "pkg:maven/com.example/myapplication@1.0.0?packaging=war",
+						Licenses: []string{"EPL-2.0 OR GPL-2.0-with-classpath-exception"},
+					},
+					{
+						Name: "myframework", Version: "1.0.0", Type: "framework",
+						PURL:     "pkg:maven/com.example/myframework@1.0.0?packaging=war",
+						Licenses: []string{"Some random license"},
+					},
+				},
+			},
 		},
 		{
-			Name: "log4j-api", Version: "2.14.1", Type: "library", Licenses: []string{"Apache-2.0"},
-			PURL: "pkg:maven/org.apache.logging.log4j/log4j-api@2.14.1",
+			fixture: "cyclonedx-1.7-guide-bom-link.json",
+			want: Document{
+				Format: FormatCycloneDX, SpecVersion: "1.7",
+				DocumentID: "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79",
+				Components: []Component{
+					{Name: "Acme Application", Version: "1.0.0", Type: "application"},
+					{Name: "Acme Threat Model", Type: "data"},
+				},
+			},
 		},
 		{
-			Name: "serde", Version: "1.0.210", Type: "library", Licenses: []string{"MIT OR Apache-2.0"},
-			PURL: "pkg:cargo/serde@1.0.210",
+			fixture: "cyclonedx-1.7-spec-license-choice.json",
+			want: Document{
+				Format: FormatCycloneDX, SpecVersion: "1.7",
+				DocumentID: "urn:uuid:b1ef52c6-7cd8-43d5-9e42-5e69044bbe9e",
+				Components: []Component{{
+					Name: "tomcat-catalina", Version: "9.0.14", Type: "application",
+					Licenses: []string{
+						"Apache-2.0", "EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0",
+						"My Own License", "LicenseRef-MIT-Style-2",
+					},
+				}},
+			},
 		},
-		{Name: "internal-utils", Version: "0.3.0", Type: "library", Licenses: []string{"Acme Proprietary License"}},
-	}
-	if !reflect.DeepEqual(doc.Components, want) {
-		t.Errorf("components:\n got %+v\nwant %+v", doc.Components, want)
-	}
-}
-
-func TestParseSPDX(t *testing.T) {
-	t.Parallel()
-	doc, err := Parse(readFixture(t, "spdx-3.0.1.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if doc.Format != FormatSPDX || doc.SpecVersion != "3.0.1" || doc.Name != "acme-cli" ||
-		doc.DocumentID != "https://example.com/acme-cli/document" {
-		t.Errorf("unexpected document header: %+v", doc)
-	}
-	want := []Component{
 		{
-			Name: "acme-cli", Version: "1.0.0", Type: "application",
-			Licenses: []string{"GPL-2.0-only WITH Classpath-exception-2.0", "NOASSERTION"},
+			fixture: "spdx-3.0.1-examples-example11.json",
+			want: Document{
+				Format: FormatSPDX, SpecVersion: "3.0.1", Name: "SBOM-SPDX-2d85f548-12fa-46d5-87ce-5e78e5e111f4",
+				DocumentID: "https://spdx.org/spdxdocs/k8s-releng-bom-7c6a33ab-bd76-4b06-b291-a850e0815b07-specv3/document0",
+				Components: []Component{
+					{
+						Name: "hello-server-src", Version: "0.1.0", Licenses: []string{"Apache-2.0"},
+						PURL: "pkg:deb/debian/libselinux1-dev@3.1-3?arch=s390x",
+					},
+					{
+						Name: "hyper", Version: "0.14", PURL: "pkg:cargo/hyper@0.14",
+						Licenses: []string{"MIT", "NOASSERTION"},
+					},
+					{
+						Name: "tokio", Version: "1.19.2", PURL: "pkg:cargo/tokio@1.19.2",
+						Licenses: []string{"MIT", "NOASSERTION"},
+					},
+					{
+						Name: "pretty_env_logger", Version: "0.4.0", PURL: "pkg:cargo/pretty_env_logger@0.4.0",
+						Licenses: []string{"(MIT OR Apache-2.0)", "NOASSERTION"},
+					},
+				},
+			},
 		},
-		{Name: "hyper", Version: "0.14.28", PURL: "pkg:cargo/hyper@0.14.28", Type: "library", Licenses: []string{"MIT"}},
 		{
-			Name: "log4j-core", Version: "2.17.1", Licenses: []string{"Apache-2.0"},
-			PURL: "pkg:maven/org.apache.logging.log4j/log4j-core@2.17.1",
+			fixture: "spdx-3.0.1-spec-package-sbom.json",
+			want: Document{
+				Format: FormatSPDX, SpecVersion: "3.0.1", DocumentID: "http://spdx.example.com/Document1",
+				Components: []Component{{Name: "my-package", Version: "1.0"}},
+			},
 		},
 	}
-	if !reflect.DeepEqual(doc.Components, want) {
-		t.Errorf("components:\n got %+v\nwant %+v", doc.Components, want)
+	for _, tt := range tests {
+		t.Run(tt.fixture, func(t *testing.T) {
+			t.Parallel()
+			doc, err := Parse(readFixture(t, tt.fixture))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(*doc, tt.want) {
+				t.Errorf("\n got %+v\nwant %+v", *doc, tt.want)
+			}
+		})
 	}
 }
 
 func TestParseUnsupported(t *testing.T) {
 	t.Parallel()
-	tests := map[string]string{
-		"cyclonedx 1.5": `{"bomFormat": "CycloneDX", "specVersion": "1.5"}`,
-		"spdx 2.3":      `{"spdxVersion": "SPDX-2.3", "packages": []}`,
-		"spdx 3.1":      `{"@context": "x", "@graph": [{"type": "CreationInfo", "specVersion": "3.1.0"}]}`,
-		"not an sbom":   `{"hello": "world"}`,
+	fixtures := []string{
+		"unsupported/cyclonedx-1.4-examples-laravel.json",
+		"unsupported/spdx-2.3-examples-minimal-sbom.json",
 	}
-	for name, input := range tests {
+	for _, name := range fixtures {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := Parse(readFixture(t, name)); !errors.Is(err, ErrUnsupportedFormat) {
+				t.Errorf("want ErrUnsupportedFormat, got %v", err)
+			}
+		})
+	}
+
+	// No published SPDX 3.1 document exists yet, and a non-SBOM has no
+	// canonical source, so these two stay inline.
+	inline := map[string]string{
+		"spdx 3.1":    `{"@context": "x", "@graph": [{"type": "CreationInfo", "specVersion": "3.1.0"}]}`,
+		"not an sbom": `{"hello": "world"}`,
+	}
+	for name, input := range inline {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			if _, err := Parse([]byte(input)); !errors.Is(err, ErrUnsupportedFormat) {
@@ -105,7 +164,8 @@ func TestLicenseIDs(t *testing.T) {
 		{[]string{"GPL-2.0-only WITH Classpath-exception-2.0"}, []string{"GPL-2.0-only"}},
 		{[]string{"Apache-2.0", "apache-2.0", "MIT"}, []string{"Apache-2.0", "MIT"}},
 		{[]string{"NOASSERTION", "NONE", ""}, nil},
-		{[]string{"Acme Proprietary License"}, []string{"Acme Proprietary License"}},
+		{[]string{"Some random license"}, []string{"Some random license"}},
+		{[]string{"LicenseRef-MIT-Style-2"}, []string{"LicenseRef-MIT-Style-2"}},
 	}
 	for _, tt := range tests {
 		if got := LicenseIDs(tt.in); !reflect.DeepEqual(got, tt.want) {

@@ -1,4 +1,4 @@
-// Package sbom parses CycloneDX 1.6 and SPDX 3.0 JSON documents into a
+// Package sbom parses CycloneDX 1.6/1.7 and SPDX 3.0 JSON documents into a
 // format-neutral list of components.
 package sbom
 
@@ -16,8 +16,8 @@ const (
 	FormatSPDX      Format = "spdx"
 )
 
-// ErrUnsupportedFormat is returned when a document is not CycloneDX 1.6 or
-// SPDX 3.0 JSON.
+// ErrUnsupportedFormat is returned when a document is not CycloneDX 1.6/1.7
+// or SPDX 3.0 JSON.
 var ErrUnsupportedFormat = errors.New("unsupported SBOM format")
 
 // Document is the format-neutral view of an SBOM used for indexing.

@@ -75,7 +75,10 @@ func TestInvalidInvocations(t *testing.T) {
 		{[]string{"query", "--component", ""}, "one of --component or --license is required"},
 		{[]string{"query", "extra-arg", "--component", "x"}, "unknown command"},
 		{[]string{"ingest"}, "accepts 1 arg(s), received 0"},
-		{[]string{"ingest", fixtures + "cyclonedx-1.6.json", fixtures + "spdx-3.0.1.json"}, "accepts 1 arg(s), received 2"},
+		{
+			[]string{"ingest", fixtures + "cyclonedx-1.6-spec-valid-bom.json", fixtures + "spdx-3.0.1-spec-package-sbom.json"},
+			"accepts 1 arg(s), received 2",
+		},
 	}
 	for _, tt := range tests {
 		_, err := run(t, append(tt.args, "--db", db)...)
@@ -87,7 +90,14 @@ func TestInvalidInvocations(t *testing.T) {
 
 func TestIngestAndQuery(t *testing.T) {
 	db := filepath.Join(t.TempDir(), "test.db")
-	for _, name := range []string{"cyclonedx-1.6.json", "spdx-3.0.1.json"} {
+	names := []string{
+		"cyclonedx-1.6-spec-valid-bom.json",
+		"cyclonedx-1.7-guide-bom-link.json",
+		"cyclonedx-1.7-spec-license-choice.json",
+		"spdx-3.0.1-examples-example11.json",
+		"spdx-3.0.1-spec-package-sbom.json",
+	}
+	for _, name := range names {
 		out, err := run(t, "ingest", fixtures+name, "--db", db)
 		if err != nil {
 			t.Fatalf("ingest %s: %v", name, err)
@@ -96,7 +106,7 @@ func TestIngestAndQuery(t *testing.T) {
 			t.Errorf("ingest %s output: %q", name, out)
 		}
 	}
-	out, err := run(t, "ingest", fixtures+"cyclonedx-1.6.json", "--db", db)
+	out, err := run(t, "ingest", fixtures+"cyclonedx-1.6-spec-valid-bom.json", "--db", db)
 	if err != nil || !strings.Contains(out, "already ingested as SBOM 1") {
 		t.Errorf("re-ingest: out=%q err=%v", out, err)
 	}
@@ -105,9 +115,9 @@ func TestIngestAndQuery(t *testing.T) {
 		args []string
 		want []string
 	}{
-		{[]string{"--component", "log4j-core"}, []string{"log4j-core@2.14.1", "log4j-core@2.17.1"}},
-		{[]string{"--component", "log4j-core", "--version", "2.14.1"}, []string{"log4j-core@2.14.1"}},
-		{[]string{"--license", "MIT"}, []string{"hyper@0.14.28", "serde@1.0.210"}},
+		{[]string{"--component", "tomcat-catalina"}, []string{"tomcat-catalina@9.0.14", "tomcat-catalina@9.0.14"}},
+		{[]string{"--component", "Acme Application", "--version", "1.0.0"}, []string{"Acme Application@1.0.0"}},
+		{[]string{"--license", "MIT"}, []string{"hyper@0.14", "pretty_env_logger@0.4.0", "tokio@1.19.2"}},
 		{[]string{"--component", "does-not-exist"}, nil},
 	}
 	for _, tt := range tests {
@@ -129,11 +139,11 @@ func TestIngestAndQuery(t *testing.T) {
 		}
 	}
 
-	out, err = run(t, "query", "--component", "serde", "--db", db)
+	out, err = run(t, "query", "--component", "pretty_env_logger", "--db", db)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(out, "SBOM") || !strings.Contains(out, "MIT OR Apache-2.0") {
+	if !strings.HasPrefix(out, "SBOM") || !strings.Contains(out, "(MIT OR Apache-2.0)") {
 		t.Errorf("table output:\n%s", out)
 	}
 }

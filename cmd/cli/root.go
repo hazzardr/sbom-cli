@@ -14,7 +14,7 @@ var dbPath string
 
 var rootCmd = &cobra.Command{
 	Use:   "sbom-cli",
-	Short: "Ingest, store, and query SBOMs (CycloneDX 1.6 and SPDX 3.0 JSON).",
+	Short: "Ingest, store, and query SBOMs (CycloneDX 1.6/1.7 and SPDX 3.0 JSON).",
 	// main logs returned errors; usage is only useful for flag errors.
 	SilenceUsage:  true,
 	SilenceErrors: true,

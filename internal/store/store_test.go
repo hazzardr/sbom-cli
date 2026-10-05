@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/hazzardr/sbom-cli/internal/sbom"
 )
 
 func openTestStore(t *testing.T) *Store {
@@ -30,10 +32,18 @@ func readFixture(t *testing.T, name string) []byte {
 	return data
 }
 
-// ingestFixtures loads the CycloneDX fixture as SBOM 1 and SPDX as SBOM 2.
+// fixtures are ingested in this order, so SBOM IDs are 1-5 respectively.
+var fixtures = []string{
+	"cyclonedx-1.6-spec-valid-bom.json",
+	"cyclonedx-1.7-guide-bom-link.json",
+	"cyclonedx-1.7-spec-license-choice.json",
+	"spdx-3.0.1-examples-example11.json",
+	"spdx-3.0.1-spec-package-sbom.json",
+}
+
 func ingestFixtures(t *testing.T, s *Store) {
 	t.Helper()
-	for _, name := range []string{"cyclonedx-1.6.json", "spdx-3.0.1.json"} {
+	for _, name := range fixtures {
 		if _, err := s.Ingest(t.Context(), name, readFixture(t, name)); err != nil {
 			t.Fatalf("ingest %s: %v", name, err)
 		}
@@ -43,13 +53,13 @@ func ingestFixtures(t *testing.T, s *Store) {
 func TestIngestDeduplicates(t *testing.T) {
 	t.Parallel()
 	s := openTestStore(t)
-	raw := readFixture(t, "cyclonedx-1.6.json")
+	raw := readFixture(t, "cyclonedx-1.6-spec-valid-bom.json")
 
 	first, err := s.Ingest(t.Context(), "a.json", raw)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.Duplicate || first.Components != 5 {
+	if first.Duplicate || first.Components != 4 {
 		t.Errorf("first ingest: %+v", first)
 	}
 	second, err := s.Ingest(t.Context(), "b.json", raw)
@@ -64,7 +74,7 @@ func TestIngestDeduplicates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 1 || list[0].ComponentCount != 5 || list[0].Name != "acme-web" {
+	if len(list) != 1 || list[0].ComponentCount != 4 || list[0].Name != "Acme Application" {
 		t.Errorf("list: %+v", list)
 	}
 }
@@ -72,8 +82,9 @@ func TestIngestDeduplicates(t *testing.T) {
 func TestIngestRejectsUnsupported(t *testing.T) {
 	t.Parallel()
 	s := openTestStore(t)
-	if _, err := s.Ingest(t.Context(), "x.json", []byte(`{"bomFormat":"CycloneDX","specVersion":"1.4"}`)); err == nil {
-		t.Fatal("expected error for CycloneDX 1.4")
+	raw := readFixture(t, "unsupported/cyclonedx-1.4-examples-laravel.json")
+	if _, err := s.Ingest(t.Context(), "laravel.json", raw); !errors.Is(err, sbom.ErrUnsupportedFormat) {
+		t.Fatalf("want ErrUnsupportedFormat for CycloneDX 1.4, got %v", err)
 	}
 	list, err := s.List(t.Context())
 	if err != nil {
@@ -87,7 +98,7 @@ func TestIngestRejectsUnsupported(t *testing.T) {
 func TestDocumentStoredAsJSONB(t *testing.T) {
 	t.Parallel()
 	s := openTestStore(t)
-	raw := readFixture(t, "spdx-3.0.1.json")
+	raw := readFixture(t, "spdx-3.0.1-examples-example11.json")
 	res, err := s.Ingest(t.Context(), "spdx.json", raw)
 	if err != nil {
 		t.Fatal(err)
@@ -136,26 +147,39 @@ func TestSearch(t *testing.T) {
 		filter Filter
 		want   []string
 	}{
-		{"component across formats", Filter{Component: "log4j-core"}, []string{"1:log4j-core@2.14.1", "2:log4j-core@2.17.1"}},
 		{
-			"component is case-insensitive", Filter{Component: "LOG4J-CORE"},
-			[]string{"1:log4j-core@2.14.1", "2:log4j-core@2.17.1"},
+			"component across sboms", Filter{Component: "tomcat-catalina"},
+			[]string{"1:tomcat-catalina@9.0.14", "3:tomcat-catalina@9.0.14"},
 		},
-		{"component and version", Filter{Component: "log4j-core", Version: "2.14.1"}, []string{"1:log4j-core@2.14.1"}},
-		{"version only", Filter{Version: "2.14.1"}, []string{"1:log4j-api@2.14.1", "1:log4j-core@2.14.1"}},
-		{"license from expression", Filter{License: "mit"}, []string{"1:serde@1.0.210", "2:hyper@0.14.28"}},
 		{
-			"license id", Filter{License: "Apache-2.0"},
+			"component is case-insensitive", Filter{Component: "acme application"},
+			[]string{"1:Acme Application@9.1.1", "2:Acme Application@1.0.0"},
+		},
+		{
+			"component and version", Filter{Component: "Acme Application", Version: "1.0.0"},
+			[]string{"2:Acme Application@1.0.0"},
+		},
+		{"version only", Filter{Version: "9.0.14"}, []string{"1:tomcat-catalina@9.0.14", "3:tomcat-catalina@9.0.14"}},
+		{
+			"license from expression", Filter{License: "mit"},
+			[]string{"4:hyper@0.14", "4:pretty_env_logger@0.4.0", "4:tokio@1.19.2"},
+		},
+		{
+			"license id across formats", Filter{License: "Apache-2.0"},
 			[]string{
-				"1:acme-web@2.4.0", "1:log4j-api@2.14.1", "1:log4j-core@2.14.1",
-				"1:serde@1.0.210", "2:log4j-core@2.17.1",
+				"1:tomcat-catalina@9.0.14", "3:tomcat-catalina@9.0.14",
+				"4:hello-server-src@0.1.0", "4:pretty_env_logger@0.4.0",
 			},
 		},
-		{"license with exception", Filter{License: "GPL-2.0-only"}, []string{"2:acme-cli@1.0.0"}},
-		{"license name", Filter{License: "Acme Proprietary License"}, []string{"1:internal-utils@0.3.0"}},
+		{"license with exception", Filter{License: "GPL-2.0"}, []string{"3:tomcat-catalina@9.0.14"}},
+		{"license name", Filter{License: "some random license"}, []string{"1:myframework@1.0.0"}},
+		{"license ref", Filter{License: "LicenseRef-MIT-Style-2"}, []string{"3:tomcat-catalina@9.0.14"}},
 		{"placeholders are not licenses", Filter{License: "NOASSERTION"}, nil},
-		{"all filters", Filter{Component: "serde", Version: "1.0.210", License: "MIT"}, []string{"1:serde@1.0.210"}},
-		{"no match", Filter{Component: "log4j-core", License: "MIT"}, nil},
+		{
+			"all filters", Filter{Component: "tomcat-catalina", Version: "9.0.14", License: "EPL-2.0"},
+			[]string{"3:tomcat-catalina@9.0.14"},
+		},
+		{"no match", Filter{Component: "hyper", License: "Apache-2.0"}, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -24,7 +24,7 @@ information relevant to the problem or query, then proceed.
 
 | Concern | Tool |
 |---|---|
-| Purpose | Ingest, store, and query SBOMs (CycloneDX 1.6 and SPDX 3.0 JSON) |
+| Purpose | Ingest, store, and query SBOMs (CycloneDX 1.6/1.7 and SPDX 3.0 JSON) |
 | Language | Go 1.25 (pinned via mise) |
 | CLI | `spf13/cobra` — commands in `cmd/cli/`, wired from root `main.go` |
 | Logging | `charmbracelet/log` bridged to `log/slog` — use `slog` everywhere |
@@ -37,7 +37,7 @@ information relevant to the problem or query, then proceed.
 
 - `main.go` — entrypoint; sets up slog, calls `cli.Execute()`
 - `cmd/cli/` — Cobra commands (`ingest`, `list`, `query`, `show`); add new commands here
-- `internal/sbom/` — format detection and parsing of CycloneDX 1.6 / SPDX 3.0
+- `internal/sbom/` — format detection and parsing of CycloneDX 1.6/1.7 and SPDX 3.0
   into a format-neutral `Document`; `LicenseIDs` splits SPDX expressions
 - `internal/store/` — SQLite persistence: ingest, list, show, and `Search`
 - `db/query.sql` — sqlc queries

@@ -10,7 +10,7 @@ import (
 
 var ingestCmd = &cobra.Command{
 	Use:                   "ingest <sbom-file>",
-	Short:                 "Ingest a CycloneDX 1.6 or SPDX 3.0 JSON SBOM (use - for stdin)",
+	Short:                 "Ingest a CycloneDX 1.6/1.7 or SPDX 3.0 JSON SBOM (use - for stdin)",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

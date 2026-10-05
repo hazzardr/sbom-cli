@@ -3,9 +3,14 @@ package sbom
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 )
 
-const cycloneDXSpecVersion = "1.6"
+// cycloneDXSpecVersions are the accepted specVersion values. The fields read
+// here (component name, version, purl, type, licenses, nested components) are
+// unchanged between them; 1.7 additionally allows mixing license IDs, names,
+// and expressions in one licenses array, which cdxLicenses already handles.
+var cycloneDXSpecVersions = []string{"1.6", "1.7"}
 
 type cdxBOM struct {
 	SpecVersion  string `json:"specVersion"`
@@ -40,9 +45,9 @@ func parseCycloneDX(data []byte) (*Document, error) {
 	if err := json.Unmarshal(data, &bom); err != nil {
 		return nil, fmt.Errorf("decode CycloneDX: %w", err)
 	}
-	if bom.SpecVersion != cycloneDXSpecVersion {
-		return nil, fmt.Errorf("%w: CycloneDX specVersion %q (want %s)",
-			ErrUnsupportedFormat, bom.SpecVersion, cycloneDXSpecVersion)
+	if !slices.Contains(cycloneDXSpecVersions, bom.SpecVersion) {
+		return nil, fmt.Errorf("%w: CycloneDX specVersion %q (want one of %v)",
+			ErrUnsupportedFormat, bom.SpecVersion, cycloneDXSpecVersions)
 	}
 
 	doc := &Document{
