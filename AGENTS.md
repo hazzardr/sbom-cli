@@ -25,7 +25,7 @@ information relevant to the problem or query, then proceed.
 | Concern | Tool |
 |---|---|
 | Purpose | Ingest, store, and query SBOMs (CycloneDX 1.6/1.7 and SPDX 3.0 JSON) |
-| Language | Go 1.25 (pinned via mise) |
+| Language | Go 1.27 (pinned via mise; CI reads `go.mod`) |
 | CLI | `spf13/cobra` — commands in `cmd/cli/`, wired from root `main.go` |
 | Logging | `charmbracelet/log` bridged to `log/slog` — use `slog` everywhere |
 | Database | SQLite via `modernc.org/sqlite` (pure Go, no cgo) |

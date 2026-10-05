@@ -10,6 +10,10 @@ on:
       - 'go.sum'
       - '.golangci.yml'
       - '.github/workflows/ci.yml'
+      - 'mise.toml'
+      - 'sqlc.yaml'
+      - 'db/**'
+      - 'migrations/**'
   pull_request:
     branches:
       - main
@@ -23,6 +27,10 @@ on:
       - 'go.sum'
       - '.golangci.yml'
       - '.github/workflows/ci.yml'
+      - 'mise.toml'
+      - 'sqlc.yaml'
+      - 'db/**'
+      - 'migrations/**'
 
 permissions:
   contents: read
@@ -40,24 +48,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Set up Go
-        uses: actions/setup-go@v6
+      # Go and sqlc at the versions pinned in mise.toml.
+      - name: Install pinned tools
+        uses: jdx/mise-action@v5
         with:
-          go-version: '1.25'
+          install_args: go sqlc
+
+      # generated/ is committed so go install works without sqlc; fail if it
+      # is stale relative to migrations/ and db/query.sql.
+      - name: Check generated code is up to date
+        run: |
+          mise run generate
+          if [ -n "$(git status --porcelain -- generated/)" ]; then
+            git status --short -- generated/
+            git diff -- generated/
+            echo "::error::generated/ is stale; run 'mise run generate' and commit the result"
+            exit 1
+          fi
 
       - name: Download dependencies
-        run: go mod download
+        run: mise exec -- go mod download
 
       - name: Verify dependencies
-        run: go mod verify
+        run: mise exec -- go mod verify
 
       - name: Run tests
-        run: go test -v -race ./...
+        run: mise exec -- go test -v -race ./...
         env:
           TESTCONTAINERS_RYUK_DISABLED: true
 
       - name: Run go vet
-        run: go vet ./...
+        run: mise exec -- go vet ./...
 
   lint:
     name: Lint
@@ -69,13 +90,13 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
           cache: false
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.13.2 # keep in sync with mise.toml
           args: --timeout=10m
           only-new-issues: true
           skip-cache: false
