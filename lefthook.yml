@@ -12,4 +12,4 @@ pre-commit:
       run: mise run lint
 
     - name: test
-      run: mise run test
+      run: mise run test:unit

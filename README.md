@@ -5,7 +5,7 @@ and SPDX 3.0 JSON. See [AGENTS.md](AGENTS.md) for the tech stack, data model,
 and agent operating instructions.
 
 ```bash
-mise install       # install pinned tools (go, sqlc, goose, golangci-lint, cobra-cli, lefthook)
+mise install       # install pinned tools (go, sqlc, goose, golangci-lint, cobra-cli, lefthook, k6)
 mise exec -- lefthook install  # install git hooks
 cp .env.example .env
 mise run build
@@ -25,3 +25,13 @@ stored SBOMs and print one back as JSON.
 
 The database is created and migrated automatically at `--db`, `$DB_URL`, or
 `data/sbom-cli.db`.
+
+## Tests
+
+```bash
+mise run test:unit          # unit tests (also run by the pre-commit hook and CI)
+mise run test:performance   # k6 load test against `sbom-cli serve`; local only
+```
+
+The performance test generates synthetic SBOMs into the gitignored
+`tests/performance/data/`; see `tests/performance/run.sh` for tuning.

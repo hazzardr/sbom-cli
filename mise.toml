@@ -3,6 +3,7 @@ go = "1.27"
 sqlc = "1.31.1"
 golangci-lint = "2.13.2"
 lefthook = "2.1.16"
+k6 = "2.3.0"
 "go:github.com/pressly/goose/v3/cmd/goose" = "3.28.0"
 "go:github.com/spf13/cobra-cli" = "1.3.0"
 
@@ -26,9 +27,14 @@ run = "rm -rf generated bin"
 description = "Run golangci-lint"
 run = "golangci-lint run"
 
-[tasks.test]
-description = "Run tests"
+[tasks."test:unit"]
+description = "Run unit tests"
 run = "go test -v ./..."
+
+[tasks."test:performance"]
+description = "Run the k6 performance tests locally (not in CI); see tests/performance/run.sh"
+depends = ["build"]
+run = "tests/performance/run.sh"
 
 [tasks.fmt]
 description = "Format the project"

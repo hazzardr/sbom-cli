@@ -33,3 +33,6 @@ go.work.sum
 
 # local sqlite database
 data/
+
+# generated performance-test SBOMs and database
+tests/performance/data/

@@ -16,7 +16,7 @@ information relevant to the problem or query, then proceed.
   `mise exec -- <cmd>` so the pinned tool versions are used. Never invoke
   `go`, `sqlc`, `golangci-lint`, or `goose` directly unless verifying mise
   behavior itself.
-- **Verify changes**: after editing code, run `mise run test` and
+- **Verify changes**: after editing code, run `mise run test:unit` and
   `mise run lint`. Lint must pass with 0 issues.
 - **Commits**: use Conventional Commits (`feat:`, `fix:`, `chore:`, ...).
 
@@ -33,6 +33,7 @@ information relevant to the problem or query, then proceed.
 | Migrations | `goose` — SQL files in `migrations/`, embedded and applied on every DB open |
 | HTTP | stdlib `net/http` — `internal/api`, served by `sbom-cli serve` (used by the performance tests) |
 | Lint | `golangci-lint` (`.golangci.yml`) |
+| Performance | `k6` — local only, `tests/performance/` |
 
 ## Layout
 
@@ -42,6 +43,9 @@ information relevant to the problem or query, then proceed.
   into a format-neutral `Document`; `LicenseIDs` splits SPDX expressions
 - `internal/store/` — SQLite persistence: ingest, list, show, and `Search`
 - `internal/api/` — HTTP handlers mirroring the CLI forms (`POST /sboms`, `GET /components`)
+- `tests/performance/` — k6 scripts (`ingest.js`, `query.js`), `run.sh`, and a
+  document generator (`generate/`). Generated SBOMs and the test database go in
+  the gitignored `tests/performance/data/`
 - `db/query.sql` — sqlc queries
 - `migrations/` — goose migration files (sqlite3 dialect); also the sqlc schema
   source. `embed.go` embeds them into the binary
@@ -56,7 +60,8 @@ information relevant to the problem or query, then proceed.
 mise install                        # install pinned tools (first time)
 mise run generate                   # sqlc codegen
 mise run build                      # generate + build to bin/
-mise run test                       # go test ./...
+mise run test:unit                  # go test ./...
+mise run test:performance           # k6 ingest + query against `serve` (local only, ~35s)
 mise run lint                       # golangci-lint
 mise run fmt                        # go fmt
 mise run db:migrate                 # goose migrations up
@@ -78,6 +83,12 @@ mise run db:migration:status
   written, so those differences still produce a new SBOM.
 
 ## Gotchas
+
+- `test:performance` is deliberately not run in CI (runner cost). Tune it with
+  env vars documented at the top of `tests/performance/run.sh`, e.g.
+  `SBOM_COUNT=1000 QUERY_DURATION=2m mise run test:performance`. Generated data is
+  reused while its parameters match; delete `tests/performance/data/` to force
+  regeneration.
 
 - New sqlc queries need a `-- name: GetX :many` annotation or sqlc fails.
 - `store.Search` builds its SQL by hand instead of using sqlc: the

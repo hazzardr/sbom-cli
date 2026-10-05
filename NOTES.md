@@ -35,6 +35,9 @@ Parsing / query gaps
 - ingest takes one file (acceptance criteria) => bulk loads re-open the db and re-check migrations per file
 
 Tooling / tests
+- perf tests have no latency thresholds yet (only correctness); add p95 limits once there's a baseline from a few runs on the same machine
+- perf baseline (2026-10-05, this laptop, 100 sboms x 500 components): ingest p95 153ms with 4 VUs; component / component+version p95 <1ms; license p95 108ms and 6.4GB transferred in 30s => pagination
+- `sbom-cli serve` exists for perf tests: no auth, binds localhost by default; needs auth/tenancy before any real deployment
 - ci workflow changes (mise-action, generated-code check, go-version-file, pinned golangci-lint) haven't run on github yet: no remote; validated locally with actionlint + the same shell steps
 - golangci-lint version is pinned twice (mise.toml + ci.yml lint job); keep in sync
 - cyclonedx guide fixture was transcribed from pdf text; no downloadable json source exists
