@@ -136,8 +136,10 @@ func TestParseUnsupported(t *testing.T) {
 		})
 	}
 
-	// No published SPDX 3.1 document exists yet, and a non-SBOM has no
-	// canonical source, so these two stay inline.
+	// Minimal hand-written inputs, kept on purpose: they need no real document.
+	// "spdx 3.1" is the only test of the SPDX version check (spdx.go); the
+	// SPDX 2.3 fixture is rejected earlier, by format detection, so it never
+	// reaches that check. No published SPDX 3.1 document exists to use instead.
 	inline := map[string]string{
 		"spdx 3.1":    `{"@context": "x", "@graph": [{"type": "CreationInfo", "specVersion": "3.1.0"}]}`,
 		"not an sbom": `{"hello": "world"}`,
