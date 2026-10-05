@@ -24,21 +24,27 @@ information relevant to the problem or query, then proceed.
 
 | Concern | Tool |
 |---|---|
+| Purpose | Ingest, store, and query SBOMs (CycloneDX 1.6 and SPDX 3.0 JSON) |
 | Language | Go 1.25 (pinned via mise) |
 | CLI | `spf13/cobra` — commands in `cmd/cli/`, wired from root `main.go` |
 | Logging | `charmbracelet/log` bridged to `log/slog` — use `slog` everywhere |
-| Database | SQLite via `modernc.org/sqlite` (goose migrations; sqlc uses `database/sql`)
-| Queries | `sqlc` — `db/schema.sql` + `db/query.sql` → `generated/domain` |
-| Migrations | `goose` — SQL files in `migrations/` (`-- +goose Up/Down`) |
+| Database | SQLite via `modernc.org/sqlite` (pure Go, no cgo) |
+| Queries | `sqlc` — `migrations/` (schema) + `db/query.sql` → `generated/domain` |
+| Migrations | `goose` — SQL files in `migrations/`, embedded and applied on every DB open |
 | Lint | `golangci-lint` (`.golangci.yml`) |
 
 ## Layout
 
 - `main.go` — entrypoint; sets up slog, calls `cli.Execute()`
-- `cmd/cli/` — Cobra commands (`root.go`); add new commands here
-- `db/` — sqlc schema and queries (source of truth for `sqlc generate`); SQLite
-- `migrations/` — goose migration files (sqlite3 dialect)
-- `generated/` — codegen output; never edit by hand
+- `cmd/cli/` — Cobra commands (`ingest`, `list`, `query`, `show`); add new commands here
+- `internal/sbom/` — format detection and parsing of CycloneDX 1.6 / SPDX 3.0
+  into a format-neutral `Document`; `LicenseIDs` splits SPDX expressions
+- `internal/store/` — SQLite persistence: ingest, list, show, and `Search`
+- `db/query.sql` — sqlc queries
+- `migrations/` — goose migration files (sqlite3 dialect); also the sqlc schema
+  source. `embed.go` embeds them into the binary
+- `generated/` — sqlc output; committed so `go install` and CI build without
+  sqlc. Never edit by hand; rerun `mise run generate` after schema/query changes
 - `mise.toml` — pinned tool versions and task definitions
 - `.env` — local config (copy from `.env.example`; holds `DB_URL`)
 
@@ -56,13 +62,27 @@ mise run db:migration:create -- NAME sql -dir migrations
 mise run db:migration:status
 ```
 
+## Data model
+
+- `sboms.data` holds the full document as SQLite JSONB (binary JSON, SQLite
+  3.45+; not the Postgres type). It is the source of truth.
+- SQLite cannot index inside JSON arrays, so queryable fields are copied at
+  ingest into `components` (name, version, purl, type) and
+  `component_licenses` (one row per license ID) with B-tree indexes.
+  `components.name` and `component_licenses.license` are `collate nocase`.
+- Documents are deduplicated by SHA-256 of the raw bytes.
+
 ## Gotchas
 
 - New sqlc queries need a `-- name: GetX :many` annotation or sqlc fails.
-- The generated `domain` code uses `database/sql` with no driver baked in —
-  when wiring the DB, open with `sql.Open("sqlite", DB_URL)` after
-  `go get modernc.org/sqlite` (pure-Go, no cgo). The sqlite file lives in
-  `data/` (gitignored); set its path via `DB_URL`.
+- `store.Search` builds its SQL by hand instead of using sqlc: the
+  `? IS NULL OR col = ?` pattern for optional filters stops SQLite from using
+  indexes. `TestSearchUsesIndexes` fails if any filter combination falls back
+  to a table scan — keep it passing when changing the query or schema.
+- Bind JSON to `jsonb(?)` as a Go `string`, not `[]byte`: a BLOB argument is
+  treated as already-encoded JSONB.
+- The database path comes from `--db`, else `$DB_URL`, else
+  `data/sbom-cli.db` (gitignored).
 - If generated code fails to compile with missing module errors, the codegen
   pulled in a new dependency: run `go get <module> && go mod tidy`.
 - mise config must be trusted after edits: `mise trust`.

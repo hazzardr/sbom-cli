@@ -31,8 +31,5 @@ go.work.sum
 # Editor/IDE
 .idea/
 
-# Generated
-generated/
-
 # local sqlite database
 data/

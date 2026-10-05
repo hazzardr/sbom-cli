@@ -1,0 +1,110 @@
+{
+  "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+  "@graph": [
+    {
+      "@id": "_:creationInfo_0",
+      "type": "CreationInfo",
+      "specVersion": "3.0.1",
+      "createdBy": ["https://example.com/acme-cli/agent"],
+      "created": "2026-10-01T12:00:00Z"
+    },
+    {
+      "spdxId": "https://example.com/acme-cli/document",
+      "type": "SpdxDocument",
+      "name": "acme-cli",
+      "rootElement": ["https://example.com/acme-cli/pkg-root"],
+      "creationInfo": "_:creationInfo_0"
+    },
+    {
+      "spdxId": "https://example.com/acme-cli/pkg-root",
+      "type": "software_Package",
+      "name": "acme-cli",
+      "software_packageVersion": "1.0.0",
+      "software_primaryPurpose": "application",
+      "creationInfo": "_:creationInfo_0"
+    },
+    {
+      "spdxId": "https://example.com/acme-cli/pkg-hyper",
+      "type": "software_Package",
+      "name": "hyper",
+      "software_packageVersion": "0.14.28",
+      "software_packageUrl": "pkg:cargo/hyper@0.14.28",
+      "software_primaryPurpose": "library",
+      "creationInfo": "_:creationInfo_0"
+    },
+    {
+      "spdxId": "https://example.com/acme-cli/pkg-log4j",
+      "type": "software_Package",
+      "name": "log4j-core",
+      "software_packageVersion": "2.17.1",
+      "software_packageUrl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.17.1",
+      "creationInfo": "_:creationInfo_0"
+    },
+    {
+      "spdxId": "https://example.com/acme-cli/file-readme",
+      "type": "software_File",
+      "name": "README.md",
+      "creationInfo": "_:creationInfo_0"
+    },
+    {
+      "spdxId": "https://example.com/acme-cli/lic-gpl",
+      "type": "simplelicensing_LicenseExpression",
+      "simplelicensing_licenseExpression": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "creationInfo": "_:creationInfo_0"
+    },
+    {
+      "spdxId": "https://example.com/acme-cli/lic-noassertion",
+      "type": "simplelicensing_LicenseExpression",
+      "simplelicensing_licenseExpression": "NOASSERTION",
+      "creationInfo": "_:creationInfo_0"
+    },
+    {
+      "spdxId": "https://example.com/acme-cli/rel-1",
+      "type": "Relationship",
+      "relationshipType": "hasDeclaredLicense",
+      "from": "https://example.com/acme-cli/pkg-root",
+      "to": ["https://example.com/acme-cli/lic-gpl"],
+      "creationInfo": "_:creationInfo_0"
+    },
+    {
+      "spdxId": "https://example.com/acme-cli/rel-2",
+      "type": "Relationship",
+      "relationshipType": "hasConcludedLicense",
+      "from": "https://example.com/acme-cli/pkg-root",
+      "to": ["https://example.com/acme-cli/lic-noassertion"],
+      "creationInfo": "_:creationInfo_0"
+    },
+    {
+      "spdxId": "https://example.com/acme-cli/rel-3",
+      "type": "Relationship",
+      "relationshipType": "hasDeclaredLicense",
+      "from": "https://example.com/acme-cli/pkg-hyper",
+      "to": ["https://spdx.org/licenses/MIT"],
+      "creationInfo": "_:creationInfo_0"
+    },
+    {
+      "spdxId": "https://example.com/acme-cli/rel-4",
+      "type": "Relationship",
+      "relationshipType": "hasDeclaredLicense",
+      "from": "https://example.com/acme-cli/pkg-log4j",
+      "to": ["https://spdx.org/licenses/Apache-2.0"],
+      "creationInfo": "_:creationInfo_0"
+    },
+    {
+      "spdxId": "https://example.com/acme-cli/rel-5",
+      "type": "Relationship",
+      "relationshipType": "dependsOn",
+      "from": "https://example.com/acme-cli/pkg-root",
+      "to": ["https://example.com/acme-cli/pkg-hyper", "https://example.com/acme-cli/pkg-log4j"],
+      "creationInfo": "_:creationInfo_0"
+    },
+    {
+      "spdxId": "https://example.com/acme-cli/rel-6",
+      "type": "Relationship",
+      "relationshipType": "hasDeclaredLicense",
+      "from": "https://example.com/acme-cli/file-readme",
+      "to": ["https://spdx.org/licenses/CC0-1.0"],
+      "creationInfo": "_:creationInfo_0"
+    }
+  ]
+}
