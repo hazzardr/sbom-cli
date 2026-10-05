@@ -3,9 +3,7 @@ package store
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -13,7 +11,8 @@ import (
 	"strings"
 
 	"github.com/pressly/goose/v3"
-	_ "modernc.org/sqlite" // registers the "sqlite" database/sql driver
+	"modernc.org/sqlite" // also registers the "sqlite" database/sql driver
+	sqlite3 "modernc.org/sqlite/lib"
 
 	"github.com/hazzardr/sbom-cli/generated/domain"
 	"github.com/hazzardr/sbom-cli/internal/sbom"
@@ -68,8 +67,8 @@ type IngestResult struct {
 	ID         int64
 	Format     sbom.Format
 	Components int
-	// Duplicate is true when an identical document was already stored; ID
-	// then refers to the existing SBOM.
+	// Duplicate is true when a document with the same content was already
+	// stored (see contentDigest); ID then refers to the existing SBOM.
 	Duplicate bool
 }
 
@@ -80,18 +79,31 @@ func (s *Store) Ingest(ctx context.Context, source string, raw []byte) (IngestRe
 	if err != nil {
 		return IngestResult{}, err
 	}
+	digest, err := contentDigest(raw)
+	if err != nil {
+		return IngestResult{}, err
+	}
 	res := IngestResult{Format: doc.Format, Components: len(doc.Components)}
 
-	sum := sha256.Sum256(raw)
-	digest := hex.EncodeToString(sum[:])
-	switch id, err := s.q.GetSBOMIDBySHA256(ctx, digest); {
-	case err == nil:
+	// Check first so re-ingesting a known document skips the write path.
+	id, found, err := s.findByDigest(ctx, digest)
+	if err != nil {
+		return IngestResult{}, err
+	}
+	if found {
 		res.ID, res.Duplicate = id, true
 		return res, nil
-	case !errors.Is(err, sql.ErrNoRows):
-		return IngestResult{}, fmt.Errorf("check for duplicate: %w", err)
 	}
+	return s.insert(ctx, res, doc, source, digest, raw)
+}
 
+// insert writes a new document and its component index. If a concurrent
+// ingest stored the same content after the duplicate check, the unique
+// constraint on sboms.sha256 rejects this insert and the existing SBOM is
+// reported as a duplicate instead of as an error.
+func (s *Store) insert(ctx context.Context, res IngestResult, doc *sbom.Document,
+	source, digest string, raw []byte,
+) (IngestResult, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return IngestResult{}, fmt.Errorf("begin transaction: %w", err)
@@ -99,6 +111,17 @@ func (s *Store) Ingest(ctx context.Context, source string, raw []byte) (IngestRe
 	defer func() { _ = tx.Rollback() }()
 
 	res.ID, err = insertDocument(ctx, s.q.WithTx(tx), doc, source, digest, raw)
+	if isUniqueViolation(err) {
+		_ = tx.Rollback()
+		id, found, lookupErr := s.findByDigest(ctx, digest)
+		if lookupErr != nil {
+			return IngestResult{}, lookupErr
+		}
+		if found {
+			res.ID, res.Duplicate = id, true
+			return res, nil
+		}
+	}
 	if err != nil {
 		return IngestResult{}, err
 	}
@@ -106,6 +129,22 @@ func (s *Store) Ingest(ctx context.Context, source string, raw []byte) (IngestRe
 		return IngestResult{}, fmt.Errorf("commit: %w", err)
 	}
 	return res, nil
+}
+
+func (s *Store) findByDigest(ctx context.Context, digest string) (int64, bool, error) {
+	id, err := s.q.GetSBOMIDBySHA256(ctx, digest)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return 0, false, nil
+	case err != nil:
+		return 0, false, fmt.Errorf("check for duplicate: %w", err)
+	}
+	return id, true, nil
+}
+
+func isUniqueViolation(err error) bool {
+	var sqliteErr *sqlite.Error
+	return errors.As(err, &sqliteErr) && sqliteErr.Code() == sqlite3.SQLITE_CONSTRAINT_UNIQUE
 }
 
 func insertDocument(ctx context.Context, q *domain.Queries, doc *sbom.Document,

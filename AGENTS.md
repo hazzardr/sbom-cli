@@ -70,7 +70,10 @@ mise run db:migration:status
   ingest into `components` (name, version, purl, type) and
   `component_licenses` (one row per license ID) with B-tree indexes.
   `components.name` and `component_licenses.license` are `collate nocase`.
-- Documents are deduplicated by SHA-256 of the raw bytes.
+- Documents are deduplicated by SHA-256 of their canonical JSON (sorted keys,
+  no whitespace; see `store.contentDigest`), so reformatted copies of the
+  same document are detected. Array order and number literals are kept as
+  written, so those differences still produce a new SBOM.
 
 ## Gotchas
 

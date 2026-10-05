@@ -8,6 +8,7 @@ create table sboms (
     document_id text not null default '',
     name text not null default '',
     source text not null default '',
+    -- SHA-256 of the canonical JSON content, for deduplication (store.contentDigest).
     sha256 text not null unique,
     ingested_at text not null default (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     data blob not null check (json_valid(data, 4))
